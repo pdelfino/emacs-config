@@ -174,8 +174,10 @@
            (doom-modeline-icon t)
            (doom-modeline-major-mode-icon t)))
 
-(use-package spacemacs-theme
-  :init (load-theme 'spacemacs-light t))
+(use-package doom-themes
+  :config
+  (load-theme 'doom-one-light t)
+  (doom-themes-org-config))
 
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
