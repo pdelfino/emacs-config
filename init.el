@@ -59,7 +59,7 @@
 (setq sentence-end-double-space nil)
 
 ;; Stable cursor (no blinking)
-(setq blink-cursor-mode nil)
+(blink-cursor-mode -1)
 
 ;; Launch maximized
 (add-to-list 'default-frame-alist '(fullscreen . maximized))
@@ -139,11 +139,11 @@
 (defvar bootstrap-version)
 (let ((bootstrap-file
        (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-      (bootstrap-version 5))
+      (bootstrap-version 6))
   (unless (file-exists-p bootstrap-file)
     (with-current-buffer
         (url-retrieve-synchronously
-         "https://raw.githubusercontent.com/raxod502/straight.el/develop/install.el"
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
          'silent 'inhibit-cookies)
       (goto-char (point-max))
       (eval-print-last-sexp)))
@@ -164,8 +164,6 @@
 ;;; ============================================================================
 ;;; UI packages
 ;;; ============================================================================
-
-(use-package command-log-mode)
 
 (use-package nerd-icons
   :if (display-graphic-p))
@@ -249,8 +247,6 @@
 ;;; ============================================================================
 ;;; General and Hydra
 ;;; ============================================================================
-
-(use-package general)
 
 (use-package hydra)
 
@@ -345,7 +341,6 @@
 (use-package vterm
   :commands vterm
   :config
-  (setq term-prompt-regexp "^[^#$%>\n]*[#$%>] *")
   (setq vterm-max-scrollback 10000))
 
 (defun pmd/configure-eshell ()
@@ -365,8 +360,6 @@
     (setq eshell-destroy-buffer-when-process-dies t)
     (setq eshell-visual-commands '("htop" "zsh" "vim")))
   (eshell-git-prompt-use-theme 'powerline))
-
-(global-set-key [(super return)] 'eshell)
 
 ;; Term tab completion
 (defun term-send-tab ()
@@ -432,20 +425,10 @@
   (setq cider-print-fn 'pprint))
 
 (use-package clj-refactor
-  :config (clj-refactor-mode 1)
+  :hook (clojure-mode . clj-refactor-mode)
   :bind ("C-c C-m" . cljr-add-keybindings-with-prefix))
 
 (customize-set-variable 'cider-shadow-cljs-command "shadow-cljs")
-
-;;; ============================================================================
-;;; Common Lisp / SLIME
-;;; ============================================================================
-
-(use-package slime
-  :config
-  (setq slime-lisp-implementations
-        '((sbcl ("/Users/pedro/projects/nyxt.sh" ""))))
-  (slime-setup '(slime-fancy slime-asdf slime-indentation slime-sbcl-exts slime-scratch)))
 
 ;;; ============================================================================
 ;;; JavaScript
@@ -657,23 +640,6 @@
   (while (search-forward "\r" nil t)
     (replace-match "")))
 
-;; macOS keyboard hacks (Portuguese input + US keyboard)
-(defun pmd/insert-slash ()
-  "Insert forward slash."
-  (interactive)
-  (insert "/"))
-(global-set-key (kbd "C-x C-M-q") 'pmd/insert-slash)
-
-(defun pmd/insert-backslash ()
-  "Insert backslash."
-  (interactive)
-  (insert "\\"))
-
-(defun pmd/insert-question-mark ()
-  "Insert question mark."
-  (interactive)
-  (insert "?"))
-
 ;; Align helper
 (defun pmd/align-repeat (start end regexp &optional justify-right after)
   "Repeat alignment with respect to the given regular expression."
@@ -697,36 +663,6 @@
                 (= 0 (forward-line 1)))
           (setq end (point-at-eol)))))
     (align-regexp start end complete-regexp group 1 t)))
-
-;; Nyxt/Lisp helpers
-(defun pmd/nyxt-quickload-gi-gtk ()
-  "Insert snippet to load Nyxt."
-  (interactive)
-  (insert "(ql:quickload :nyxt/gi-gtk)"))
-(global-set-key (kbd "C-x C-M-n") 'pmd/nyxt-quickload-gi-gtk)
-
-(defun pmd/nyxt-inside-package ()
-  "Insert snippet to enter the nyxt package."
-  (interactive)
-  (insert "(in-package :nyxt)"))
-(global-set-key (kbd "C-x C-M-p") 'pmd/nyxt-inside-package)
-
-(defun pmd/hermes-inside-package ()
-  "Insert snippet to enter the hermes package."
-  (interactive)
-  (insert "(in-package :hermes)"))
-(global-set-key (kbd "C-x C-M-h") 'pmd/hermes-inside-package)
-
-(defun pmd/nyxt-start-package ()
-  "Insert snippet to start Nyxt."
-  (interactive)
-  (insert "(start)"))
-(global-set-key (kbd "C-x C-M-s") 'pmd/nyxt-start-package)
-
-(defun pmd/slime-repl-back-CL-USER-package ()
-  "Insert snippet to get back to the CL-USER package."
-  (interactive)
-  (insert "(cl:in-package :cl-user)"))
 
 ;;; ============================================================================
 ;;; Server (for Emacs Anywhere, etc.)
