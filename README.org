@@ -1,4 +1,141 @@
-* My dotfiles
+#+TITLE: Pedro's Emacs Config
+#+AUTHOR: Pedro Delfino
 
-** Emacs
-   
+A handcrafted, single-file Emacs configuration. No frameworks, no layers, no
+generated code -- just one person's opinionated =init.el= that has evolved
+through years of daily use across NixOS and macOS.
+
+* Philosophy
+
+- One file to rule them all: everything lives in =init.el=
+- Readable over clever: explicit settings over magic
+- Stable over bleeding-edge: if it works, don't touch it
+- Cursor always centered: because the middle of the screen is where the action is
+
+* What's Inside
+
+** Package Management
+
+[[https://github.com/radian-software/straight.el][straight.el]] + =use-package=. No =package.el=, no MELPA refresh dance on
+startup. Packages are pulled from Git and built locally.
+
+** Look & Feel
+
+- *Theme:* Spacemacs Light (easy on the eyes)
+- *Modeline:* Doom Modeline with Nerd Icons
+- *Font:* Cantarell for variable pitch, system default for code
+- *Parens:* Rainbow delimiters, because Lispers deserve color
+- *Cursor:* Always centered on screen via a custom =centered-point-mode=
+
+** Navigation & Completion
+
+- *Ivy + Counsel + Swiper* for narrowing, searching, and completing everything
+- *Ivy Prescient* for frecency-based sorting (it learns what you use)
+- *Projectile* for jumping between projects in =~/projects=
+- *Ace Window* for when you have too many splits
+- *Helpful* for actually useful =describe-*= buffers
+
+** Git
+
+*Magit*. What else is there to say?
+
+** AI
+
+- *Claude Code IDE* -- full Claude Code CLI integration with MCP bridge
+  (gives Claude access to LSP, flycheck diagnostics, and project context)
+- *gptel* -- quick LLM chat from any buffer
+
+** Languages
+
+| Language   | Packages                                       |
+|------------+------------------------------------------------|
+| Clojure    | clojure-mode, CIDER, clj-refactor, clj-kondo   |
+| JavaScript | js2-mode, js2-refactor, xref-js2               |
+| Org-mode   | org-bullets, org-drill, ox-gfm, org-make-toc   |
+| LaTeX      | AUCTeX + RefTeX                                 |
+| Markdown   | markdown-mode (GFM for READMEs)                |
+| YAML       | yaml-mode                                       |
+| HTTP       | restclient-mode (=.http= files)                |
+
+LSP via =lsp-mode= for Clojure/ClojureScript. Flycheck globally enabled with a
+custom EDN syntax checker.
+
+** Lisp Editing
+
+*Paredit* everywhere: Emacs Lisp, Clojure, ClojureScript, Scheme, CIDER REPL.
+Slurp, barf, wrap -- the whole gang.
+
+** Terminal
+
+Three options, depending on the mood:
+- *vterm* -- full terminal emulation (also powers Claude Code IDE)
+- *eshell* -- Emacs-native shell with Git-aware powerline prompt
+- *term* -- the classic
+
+** Org-mode
+
+Org is configured for writing, time tracking, and LaTeX export:
+- Pretty bullets (=org-bullets=)
+- Centered text with =visual-fill-column= at 100 columns
+- Spaced repetition flashcards via =org-drill=
+- GitHub-flavored Markdown export via =ox-gfm=
+- Table of contents generation via =org-make-toc=
+
+** macOS Integration
+
+This config is tuned for macOS with [[https://pqrs.org/osx/karabiner/][Karabiner-Elements]]:
+- Caps Lock remapped to Control
+- Cmd and Option swapped (physical Cmd becomes Meta)
+- Pixel-smooth scrolling, native fullscreen
+- =exec-path-from-shell= so Emacs inherits your =$PATH=
+
+** Custom Goodies
+
+A few hand-rolled utilities:
+
+- =pmd/clipboard-copy-full-path= / =pmd/clipboard-copy-file-name= -- copy the
+  current file's path or name to the clipboard
+- =pmd/org-clock-sum-current-region= -- sum up clocked time in a selected region
+- =pmd/markdown-convert-buffer-to-org= -- convert Markdown to Org via pandoc
+- =pmd/align-repeat= -- align text by a regexp (great for tables and maps)
+- =pmd/remove-dos-eol= -- kill those pesky =\r= line endings
+
+** Tracking
+
+*WakaTime* runs globally, silently logging coding activity.
+
+* Key Bindings Worth Remembering
+
+| Binding       | Action                              |
+|---------------+-------------------------------------|
+| =C-c C-'=     | Claude Code IDE menu                |
+| =C-c p=       | Projectile command map              |
+| =C-s=         | Swiper (search in buffer)           |
+| =M-x=         | Counsel M-x (fuzzy command search)  |
+| =M-y=         | Counsel yank-pop (clipboard ring)   |
+| =C-x C-M-b=  | Jump to bookmark                    |
+| =C-x C-M-r=  | Revert buffer                       |
+| =M-]=         | Dabbrev expand (hippie completion)  |
+| =C->=  / =C-<= | Paredit slurp / barf forward      |
+
+* Installation
+
+#+begin_src shell
+# Clone
+git clone git@github.com:pdelfino/emacs-config.git ~/projects/emacs-config
+
+# Symlink
+ln -sf ~/projects/emacs-config/init.el ~/.emacs.d/init.el
+
+# Launch Emacs -- straight.el bootstraps itself and pulls all packages
+emacs
+#+end_src
+
+Requires Emacs 29+ and =cmake= (for vterm's native module).
+
+* History
+
+This config started on NixOS circa 2021, originally using =package.el= and MELPA.
+It has since been rewritten for macOS with =straight.el=. The old config (with
+SLIME, Nyxt helpers, and the entire =elpa/= directory accidentally committed) is
+preserved in git history for the archaeologically curious.
