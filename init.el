@@ -391,6 +391,7 @@
 
 (defhydra hydra-claude (:exit t)
   "Claude Code"
+  ("o" claude-code-ide "open/start")
   ("s" claude-code-ide-send-prompt "send prompt")
   ("t" claude-code-ide-toggle "toggle window")
   ("m" claude-code-ide-insert-at-mentioned "send selection")
