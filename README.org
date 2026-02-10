@@ -21,7 +21,7 @@ startup. Packages are pulled from Git and built locally.
 
 ** Look & Feel
 
-- *Theme:* Spacemacs Light (easy on the eyes)
+- *Theme:* Doom One Light (easy on the eyes)
 - *Modeline:* Doom Modeline with Nerd Icons
 - *Font:* Cantarell for variable pitch, system default for code
 - *Parens:* Rainbow delimiters, because Lispers deserve color
@@ -42,7 +42,9 @@ startup. Packages are pulled from Git and built locally.
 ** AI
 
 - *Claude Code IDE* -- full Claude Code CLI integration with MCP bridge
-  (gives Claude access to LSP, flycheck diagnostics, and project context)
+  (gives Claude access to LSP, flycheck diagnostics, and project context).
+  Accessed via a *hydra* menu (=C-c c=) for starting sessions, sending
+  prompts, toggling the window, entering copy mode, and more.
 - *gptel* -- quick LLM chat from any buffer
 
 ** Languages
@@ -108,7 +110,16 @@ A few hand-rolled utilities:
 
 | Binding       | Action                              |
 |---------------+-------------------------------------|
-| =C-c C-'=     | Claude Code IDE menu                |
+| =C-c c=       | Claude hydra menu                   |
+| =C-c c o=     | Open/start Claude Code              |
+| =C-c c s=     | Send prompt to Claude               |
+| =C-c c t=     | Toggle Claude window                |
+| =C-c c y=     | Toggle vterm copy mode              |
+| =C-c c m=     | Send selection to Claude            |
+| =C-c c c=     | Continue conversation               |
+| =C-c c r=     | Resume previous session             |
+| =C-c C-'=     | Claude Code IDE transient menu      |
+| =C-c RET=     | Send prompt (direct binding)        |
 | =C-c p=       | Projectile command map              |
 | =C-s=         | Swiper (search in buffer)           |
 | =M-x=         | Counsel M-x (fuzzy command search)  |
