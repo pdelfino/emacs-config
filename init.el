@@ -382,11 +382,23 @@
 
 (use-package claude-code-ide
   :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
-  :bind ("C-c C-'" . claude-code-ide-menu)
+  :bind (("C-c C-'" . claude-code-ide-menu)
+         ("C-c RET" . claude-code-ide-send-prompt))
   :config
   (setq claude-code-ide-terminal-backend 'vterm)
   (setq claude-code-ide-diagnostics-backend 'flycheck)
   (claude-code-ide-emacs-tools-setup))
+
+(defhydra hydra-claude (:exit t)
+  "Claude Code"
+  ("s" claude-code-ide-send-prompt "send prompt")
+  ("t" claude-code-ide-toggle "toggle window")
+  ("m" claude-code-ide-insert-at-mentioned "send selection")
+  ("c" claude-code-ide-continue "continue")
+  ("r" claude-code-ide-resume "resume")
+  ("q" nil "quit"))
+
+(global-set-key (kbd "C-c c") 'hydra-claude/body)
 
 ;;; ============================================================================
 ;;; Paredit
