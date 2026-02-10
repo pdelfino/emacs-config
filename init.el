@@ -394,6 +394,7 @@
   ("o" claude-code-ide "open/start")
   ("s" claude-code-ide-send-prompt "send prompt")
   ("t" claude-code-ide-toggle "toggle window")
+  ("y" vterm-copy-mode "copy mode")
   ("m" claude-code-ide-insert-at-mentioned "send selection")
   ("c" claude-code-ide-continue "continue")
   ("r" claude-code-ide-resume "resume")
