@@ -343,7 +343,24 @@
 (use-package vterm
   :commands vterm
   :config
-  (setq vterm-max-scrollback 10000))
+  (setq vterm-max-scrollback 10000)
+
+  ;; vterm doesn't support ANSI dim/faint (SGR 2), so pre-filled
+  ;; suggestions in Claude Code look identical to typed text.
+  ;; This advice converts dim sequences to bright-black (gray) before
+  ;; vterm's C module processes them, giving a faded look like iTerm2.
+  (advice-add 'vterm--filter :filter-args
+              (lambda (args)
+                (list (car args)
+                      (let ((input (cadr args)))
+                        (setq input (replace-regexp-in-string "\e\\[2m" "\e[90m" input))
+                        (replace-regexp-in-string "\e\\[2;" "\e[90;" input)))))
+
+  ;; Ensure bright-black (used for dim/suggestion text) is a visible
+  ;; but clearly muted gray on the light theme
+  (set-face-attribute 'vterm-color-bright-black nil
+                      :foreground "#9ca0a4"
+                      :background "#9ca0a4"))
 
 (defun pmd/configure-eshell ()
   (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
@@ -387,6 +404,8 @@
   :config
   (setq claude-code-ide-terminal-backend 'vterm)
   (setq claude-code-ide-diagnostics-backend 'flycheck)
+  (setq claude-code-ide-window-side 'bottom)
+  (setq claude-code-ide-window-height 15)
   (claude-code-ide-emacs-tools-setup))
 
 (defhydra hydra-claude (:exit t)
