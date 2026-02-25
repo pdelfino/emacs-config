@@ -43,8 +43,9 @@ startup. Packages are pulled from Git and built locally.
 
 - *Claude Code IDE* -- full Claude Code CLI integration with MCP bridge
   (gives Claude access to LSP, flycheck diagnostics, and project context).
-  Accessed via a *hydra* menu (=C-c c=) for starting sessions, sending
-  prompts, toggling the window, entering copy mode, and more.
+  Opens in a bottom side window. Accessed via a *hydra* menu (=C-c c=)
+  for starting sessions, sending prompts, toggling the window, entering
+  copy mode, and more.
 - *gptel* -- quick LLM chat from any buffer
 
 ** Languages
