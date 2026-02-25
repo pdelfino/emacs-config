@@ -43,9 +43,10 @@ startup. Packages are pulled from Git and built locally.
 
 - *Claude Code IDE* -- full Claude Code CLI integration with MCP bridge
   (gives Claude access to LSP, flycheck diagnostics, and project context).
-  Opens in a bottom side window. Accessed via a *hydra* menu (=C-c c=)
-  for starting sessions, sending prompts, toggling the window, entering
-  copy mode, and more.
+  Opens in a bottom side window. Typing in the Claude buffer automatically
+  opens the minibuffer prompt (=send-prompt=), so you compose prompts from
+  the minibuffer instead of the terminal. Slash commands (=/help=, etc.)
+  still go directly to the terminal. Accessed via a *hydra* menu (=C-c c=).
 - *gptel* -- quick LLM chat from any buffer
 
 ** Languages

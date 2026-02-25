@@ -406,7 +406,30 @@
   (setq claude-code-ide-diagnostics-backend 'flycheck)
   (setq claude-code-ide-window-side 'bottom)
   (setq claude-code-ide-window-height 15)
-  (claude-code-ide-emacs-tools-setup))
+  (claude-code-ide-emacs-tools-setup)
+
+  ;; In claude-code vterm buffers, redirect printable keystrokes to the
+  ;; send-prompt minibuffer so typing naturally opens the prompt.
+  ;; "/" is excluded so slash commands (/help, /compact, etc.) still work.
+  (defun pmd/claude-code-redirect-to-prompt ()
+    "Open send-prompt with the typed character as initial input."
+    (interactive)
+    (let ((char (string last-command-event)))
+      (claude-code-ide-send-prompt
+       (read-string "Claude prompt: " char))))
+
+  (defun pmd/claude-code-setup-redirect-keys ()
+    "Remap printable keys to send-prompt in claude-code buffers."
+    (when (claude-code-ide--session-buffer-p (current-buffer))
+      (let ((map (make-sparse-keymap)))
+        (set-keymap-parent map vterm-mode-map)
+        ;; Bind printable ASCII (space through ~), excluding /
+        (dolist (c (number-sequence ?  ?~))
+          (unless (= c ?/)
+            (define-key map (string c) #'pmd/claude-code-redirect-to-prompt)))
+        (use-local-map map))))
+
+  (add-hook 'vterm-mode-hook #'pmd/claude-code-setup-redirect-keys))
 
 (defhydra hydra-claude (:exit t)
   "Claude Code"
