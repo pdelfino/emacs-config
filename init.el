@@ -583,6 +583,7 @@
 ;;; ============================================================================
 
 (use-package wakatime-mode
+  :if (executable-find "wakatime-cli")
   :init
   (setq wakatime-api-key
         (let ((key-file "~/.wakatime-key"))

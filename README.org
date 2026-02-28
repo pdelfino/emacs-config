@@ -106,7 +106,9 @@ A few hand-rolled utilities:
 
 ** Tracking
 
-*WakaTime* runs globally, silently logging coding activity.
+*WakaTime* runs globally, silently logging coding activity. Only loads if
+=wakatime-cli= is found on the system, so the config works cleanly on
+machines without it.
 
 * Key Bindings Worth Remembering
 
