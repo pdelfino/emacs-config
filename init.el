@@ -61,6 +61,9 @@
 ;; Stable cursor (no blinking)
 (blink-cursor-mode -1)
 
+;; Prevent font cache compaction during GC (reduces micro-stutters)
+(setq inhibit-compacting-font-caches t)
+
 ;; Launch maximized
 (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
@@ -96,7 +99,8 @@
                 term-mode-hook
                 shell-mode-hook
                 eshell-mode-hook
-                vterm-mode-hook))
+                vterm-mode-hook
+                eat-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
 ;; Show matching parens
@@ -151,6 +155,23 @@
 
 (straight-use-package 'use-package)
 (setq straight-use-package-by-default t)
+
+;; Weekly auto-update: pull all packages if 7+ days since last update
+(defun pmd/straight-weekly-update ()
+  "Pull all straight.el packages if a week has passed since last update."
+  (let ((timestamp-file (expand-file-name "straight-last-update" user-emacs-directory)))
+    (when (or (not (file-exists-p timestamp-file))
+              (> (float-time (time-subtract (current-time)
+                                            (nth 5 (file-attributes timestamp-file))))
+                 (* 7 24 60 60)))
+      (message "straight.el: weekly update started...")
+      (straight-pull-all)
+      (straight-rebuild-all)
+      (with-temp-file timestamp-file
+        (insert (format-time-string "%Y-%m-%d %H:%M:%S")))
+      (message "straight.el: weekly update complete."))))
+
+(run-with-idle-timer 30 nil #'pmd/straight-weekly-update)
 
 ;;; ============================================================================
 ;;; exec-path (important for macOS)
@@ -343,24 +364,10 @@
 (use-package vterm
   :commands vterm
   :config
-  (setq vterm-max-scrollback 10000)
+  (setq vterm-max-scrollback 10000))
 
-  ;; vterm doesn't support ANSI dim/faint (SGR 2), so pre-filled
-  ;; suggestions in Claude Code look identical to typed text.
-  ;; This advice converts dim sequences to bright-black (gray) before
-  ;; vterm's C module processes them, giving a faded look like iTerm2.
-  (advice-add 'vterm--filter :filter-args
-              (lambda (args)
-                (list (car args)
-                      (let ((input (cadr args)))
-                        (setq input (replace-regexp-in-string "\e\\[2m" "\e[90m" input))
-                        (replace-regexp-in-string "\e\\[2;" "\e[90;" input)))))
-
-  ;; Ensure bright-black (used for dim/suggestion text) is a visible
-  ;; but clearly muted gray on the light theme
-  (set-face-attribute 'vterm-color-bright-black nil
-                      :foreground "#9ca0a4"
-                      :background "#9ca0a4"))
+(use-package eat
+  :commands eat)
 
 (defun pmd/configure-eshell ()
   (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
@@ -402,13 +409,13 @@
   :bind (("C-c C-'" . claude-code-ide-menu)
          ("C-c RET" . claude-code-ide-send-prompt))
   :config
-  (setq claude-code-ide-terminal-backend 'vterm)
+  (setq claude-code-ide-terminal-backend 'eat)
   (setq claude-code-ide-diagnostics-backend 'flycheck)
   (setq claude-code-ide-window-side 'bottom)
   (setq claude-code-ide-window-height 15)
   (claude-code-ide-emacs-tools-setup)
 
-  ;; In claude-code vterm buffers, redirect printable keystrokes to the
+  ;; In claude-code eat buffers, redirect printable keystrokes to the
   ;; send-prompt minibuffer so typing naturally opens the prompt.
   ;; "/" is excluded so slash commands (/help, /compact, etc.) still work.
   (defun pmd/claude-code-redirect-to-prompt ()
@@ -422,21 +429,21 @@
     "Remap printable keys to send-prompt in claude-code buffers."
     (when (claude-code-ide--session-buffer-p (current-buffer))
       (let ((map (make-sparse-keymap)))
-        (set-keymap-parent map vterm-mode-map)
+        (set-keymap-parent map eat-semi-char-mode-map)
         ;; Bind printable ASCII (space through ~), excluding /
         (dolist (c (number-sequence ?  ?~))
           (unless (= c ?/)
             (define-key map (string c) #'pmd/claude-code-redirect-to-prompt)))
         (use-local-map map))))
 
-  (add-hook 'vterm-mode-hook #'pmd/claude-code-setup-redirect-keys))
+  (add-hook 'eat-mode-hook #'pmd/claude-code-setup-redirect-keys))
 
 (defhydra hydra-claude (:exit t)
   "Claude Code"
   ("o" claude-code-ide "open/start")
   ("s" claude-code-ide-send-prompt "send prompt")
   ("t" claude-code-ide-toggle "toggle window")
-  ("y" vterm-copy-mode "copy mode")
+  ("y" eat-emacs-mode "copy mode")
   ("m" claude-code-ide-insert-at-mentioned "send selection")
   ("c" claude-code-ide-continue "continue")
   ("r" claude-code-ide-resume "resume")
