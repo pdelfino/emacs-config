@@ -425,25 +425,50 @@
       (claude-code-ide-send-prompt
        (read-string "Claude prompt: " char))))
 
-  (defun pmd/claude-code-setup-redirect-keys ()
-    "Remap printable keys to send-prompt in claude-code buffers."
-    (when (claude-code-ide--session-buffer-p (current-buffer))
-      (let ((map (make-sparse-keymap)))
-        (set-keymap-parent map eat-semi-char-mode-map)
-        ;; Bind printable ASCII (space through ~), excluding /
-        (dolist (c (number-sequence ?  ?~))
-          (unless (= c ?/)
-            (define-key map (string c) #'pmd/claude-code-redirect-to-prompt)))
-        (use-local-map map))))
+  (defvar pmd/claude-code-redirect-mode-map
+    (let ((map (make-sparse-keymap)))
+      (dolist (c (number-sequence ?  ?~))
+        (unless (= c ?/)
+          (define-key map (string c) #'pmd/claude-code-redirect-to-prompt)))
+      map)
+    "Keymap active in claude-code eat buffers during normal (semi-char) mode.")
 
-  (add-hook 'eat-mode-hook #'pmd/claude-code-setup-redirect-keys))
+  (define-minor-mode pmd/claude-code-redirect-mode
+    "Redirect printable keys to claude-code-ide-send-prompt."
+    :lighter nil
+    :keymap pmd/claude-code-redirect-mode-map)
+
+  (defun pmd/claude-code-setup-redirect-keys ()
+    "Enable key redirect in claude-code eat buffers."
+    (when (claude-code-ide--session-buffer-p (current-buffer))
+      (pmd/claude-code-redirect-mode 1)))
+
+  (add-hook 'eat-mode-hook #'pmd/claude-code-setup-redirect-keys)
+
+  ;; Toggle redirect off in copy mode (eat-emacs-mode), back on in semi-char
+  (advice-add 'eat-emacs-mode :after
+              (lambda (&rest _)
+                (when (bound-and-true-p pmd/claude-code-redirect-mode)
+                  (pmd/claude-code-redirect-mode -1))))
+
+  (advice-add 'eat-semi-char-mode :after
+              (lambda (&rest _)
+                (when (claude-code-ide--session-buffer-p (current-buffer))
+                  (pmd/claude-code-redirect-mode 1)))))
+
+(defun pmd/claude-code-toggle-copy-mode ()
+  "Toggle between eat-emacs-mode (copy) and eat-semi-char-mode (normal)."
+  (interactive)
+  (if (bound-and-true-p eat-emacs-mode)
+      (eat-semi-char-mode)
+    (eat-emacs-mode)))
 
 (defhydra hydra-claude (:exit t)
   "Claude Code"
   ("o" claude-code-ide "open/start")
   ("s" claude-code-ide-send-prompt "send prompt")
   ("t" claude-code-ide-toggle "toggle window")
-  ("y" eat-emacs-mode "copy mode")
+  ("y" pmd/claude-code-toggle-copy-mode "toggle copy mode")
   ("m" claude-code-ide-insert-at-mentioned "send selection")
   ("c" claude-code-ide-continue "continue")
   ("r" claude-code-ide-resume "resume")
@@ -580,8 +605,6 @@
   (wrap-region-add-wrapper "=" "="))
 
 (use-package speed-type)
-
-(use-package simple-httpd)
 
 (use-package clipmon)
 
