@@ -352,6 +352,23 @@
 
 (use-package ox-gfm)
 
+(defun pmd/org-export-pdf-and-open ()
+  "Export current org buffer to PDF and open it."
+  (interactive)
+  (org-latex-export-to-pdf nil nil nil nil nil)
+  (let ((pdf (concat (file-name-sans-extension (buffer-file-name)) ".pdf")))
+    (start-process "open-pdf" nil "open" pdf)))
+
+(defhydra hydra-org-export (:exit t)
+  "Org Export"
+  ("p" pmd/org-export-pdf-and-open "PDF & preview")
+  ("l" org-latex-export-to-pdf "PDF (no preview)")
+  ("h" org-html-export-to-browser "HTML in browser")
+  ("q" nil "quit"))
+
+(with-eval-after-load 'org
+  (define-key org-mode-map (kbd "C-c e") 'hydra-org-export/body))
+
 ;;; ============================================================================
 ;;; Terminal emulators
 ;;; ============================================================================
@@ -367,7 +384,9 @@
   (setq vterm-max-scrollback 10000))
 
 (use-package eat
-  :commands eat)
+  :commands eat
+  :hook (eat-mode . (lambda ()
+                      (setq-local cursor-in-non-selected-windows nil))))
 
 (defun pmd/configure-eshell ()
   (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
@@ -459,9 +478,13 @@
 (defun pmd/claude-code-toggle-copy-mode ()
   "Toggle between eat-emacs-mode (copy) and eat-semi-char-mode (normal)."
   (interactive)
-  (if (bound-and-true-p eat-emacs-mode)
+  (if (not (or eat--semi-char-mode eat--char-mode))
+      ;; Currently in emacs mode (copy), switch back
       (eat-semi-char-mode)
-    (eat-emacs-mode)))
+    ;; Switch to emacs mode for copying
+    (eat-emacs-mode)
+    ;; Force visible cursor (terminal app may have hidden it)
+    (setq-local cursor-type 'box)))
 
 (defhydra hydra-claude (:exit t)
   "Claude Code"
@@ -624,25 +647,6 @@
   :config
   (global-wakatime-mode))
 
-;;; ============================================================================
-;;; GPTel (ChatGPT in Emacs)
-;;; ============================================================================
-
-(defun pmd/read-openai-key ()
-  (with-temp-buffer
-    (insert-file-contents "~/key.txt")
-    (string-trim (buffer-string))))
-
-(use-package gptel
-  :init
-  (setq-default gptel-model "gpt-4"
-                gptel-playback t
-                gptel-default-mode 'org-mode
-                gptel-api-key #'pmd/read-openai-key)
-  (add-hook 'gptel-post-response-functions
-            (lambda (&rest _)
-              (when (string= (buffer-name) "*chatGPT*")
-                (visual-line-mode 1)))))
 
 ;;; ============================================================================
 ;;; Centered point mode
