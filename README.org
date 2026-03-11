@@ -148,6 +148,15 @@ emacs
 
 Requires Emacs 29+ and =cmake= (for vterm's native module).
 
+* Related
+
+- [[https://github.com/pdelfino/karabiner-config][karabiner-config]] - Emacs keybindings system-wide on macOS (Caps Lock → Control, etc.)
+- [[https://github.com/pdelfino/claude-config][claude-config]] - Claude Code configuration (the AI leash)
+- [[https://github.com/pdelfino/homerow-config][homerow-config]] - Click things without a mouse
+- [[https://github.com/pdelfino/iterm2-config][iterm2-config]] - iTerm2 terminal profile
+- [[https://github.com/pdelfino/zshrc][zshrc]] - Shell configuration with Emacs keybindings
+- [[https://github.com/pdelfino/macos-setup][macos-setup]] - The bootstrap that ties it all together
+
 * History
 
 This config started on NixOS circa 2021, originally using =package.el= and MELPA.
