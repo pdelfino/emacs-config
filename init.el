@@ -344,6 +344,7 @@
   :hook (org-mode . (lambda ()
                       (setq visual-fill-column-width 100
                             visual-fill-column-center-text t)
+                      (visual-line-mode 1)
                       (visual-fill-column-mode 1))))
 
 (use-package org-make-toc)
@@ -368,6 +369,15 @@
 
 (with-eval-after-load 'org
   (define-key org-mode-map (kbd "C-c e") 'hydra-org-export/body))
+
+;;; ============================================================================
+;;; PDF viewing
+;;; ============================================================================
+
+(use-package pdf-tools
+  :mode ("\\.pdf\\'" . pdf-view-mode)
+  :config
+  (pdf-tools-install :no-query))
 
 ;;; ============================================================================
 ;;; Terminal emulators
@@ -653,7 +663,9 @@
 ;;; ============================================================================
 
 (defun pmd/line-change ()
-  (when (eq (get-buffer-window) (selected-window))
+  (when (and (eq (get-buffer-window) (selected-window))
+             (not (derived-mode-p 'eat-mode))
+             (not (string= (buffer-name) "*claude-config*")))
     (recenter)))
 
 (define-minor-mode centered-point-mode
