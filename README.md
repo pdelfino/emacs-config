@@ -1,6 +1,6 @@
 # emacs-config
 
-![The Alchymist, in Search of the Philosopher's Stone](https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Joseph_Wright_of_Derby_The_Alchemist.jpg/960px-Joseph_Wright_of_Derby_The_Alchemist.jpg)
+![The Alchymist, in Search of the Philosopher's Stone](./painting.jpg)
 
 *"The Alchymist, in Search of the Philosopher's Stone" (1771) by Joseph Wright of Derby — [Wikipedia](https://en.wikipedia.org/wiki/The_Alchymist)*
 
