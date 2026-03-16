@@ -9,10 +9,11 @@
 
 ;; Karabiner swaps Cmd↔Option at OS level
 ;; Physical Cmd → Option → Meta (for M-x, M-w, etc.)
-;; Physical Option → Command → Super (disabled/passthrough)
+;; Physical Option → Command → Super (for Maccy paste via Cmd+V → s-v)
 ;; Caps Lock → Control (for C-y, C-x, etc.)
 (setq mac-option-modifier 'meta)
-(setq mac-command-modifier nil)
+(setq mac-command-modifier 'super)
+(global-set-key (kbd "s-v") 'yank)
 
 ;; Smooth scrolling
 (setq mac-mouse-wheel-smooth-scroll t)
@@ -680,6 +681,15 @@
 ;;; ============================================================================
 ;;; Custom keybindings
 ;;; ============================================================================
+
+;; C-y → Maccy clipboard history (replaces yank)
+(defun pmd/maccy-paste ()
+  "Open Maccy clipboard history popup."
+  (interactive)
+  (start-process "maccy" nil "osascript" "-e"
+                 "tell application \"System Events\" to key code 16 using {command down, option down, control down}"))
+
+(global-set-key (kbd "C-y") #'pmd/maccy-paste)
 
 (global-set-key (kbd "C-x C-M-b") 'bookmark-jump)
 (global-set-key (kbd "C-x C-M-r") 'revert-buffer)
