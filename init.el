@@ -246,7 +246,6 @@
          ("C-x C-b" . counsel-ibuffer)
          ("C-x C-f" . counsel-find-file)
          ("C-x b" . counsel-switch-buffer)
-         ("M-y" . counsel-yank-pop)
          :map minibuffer-local-map
          ("C-r" . counsel-minibuffer-history)))
 
@@ -690,6 +689,7 @@
                  "tell application \"System Events\" to key code 16 using {command down, option down, control down}"))
 
 (global-set-key (kbd "C-y") #'pmd/maccy-paste)
+(global-set-key (kbd "M-y") #'pmd/maccy-paste)
 
 (global-set-key (kbd "C-x C-M-b") 'bookmark-jump)
 (global-set-key (kbd "C-x C-M-r") 'revert-buffer)
