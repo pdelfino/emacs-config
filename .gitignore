@@ -5,9 +5,10 @@ straight/
 # Compiled elisp
 *.elc
 
-# Backup and auto-save files
+# Backup, lock, and auto-save files
 *~
 \#*\#
+.\#*
 auto-save-list/
 .saves-*
 
