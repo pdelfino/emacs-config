@@ -396,7 +396,27 @@
 (use-package eat
   :commands eat
   :hook (eat-mode . (lambda ()
-                      (setq-local cursor-in-non-selected-windows nil))))
+                      (setq-local cursor-in-non-selected-windows nil)))
+  :config
+  ;; Force programs in eat (Claude Code, etc.) to emit 256-color, not 24-bit
+  ;; truecolor. With truecolor, programs send raw RGB escapes that bypass
+  ;; the palette below, so dark theme colors land on doom-one-light unreadably.
+  (setq eat-term-name "xterm-256color")
+
+  ;; Palette tuned for doom-one-light (~#fafafa bg). Saturated enough to read
+  ;; as foreground text, dark enough that diff backgrounds aren't blinding.
+  (set-face-attribute 'eat-term-color-1  nil :foreground "#c0392b")  ; red
+  (set-face-attribute 'eat-term-color-2  nil :foreground "#2e7d32")  ; green
+  (set-face-attribute 'eat-term-color-3  nil :foreground "#a07b00")  ; yellow
+  (set-face-attribute 'eat-term-color-4  nil :foreground "#1565c0")  ; blue
+  (set-face-attribute 'eat-term-color-5  nil :foreground "#8e24aa")  ; magenta
+  (set-face-attribute 'eat-term-color-6  nil :foreground "#00838f")  ; cyan
+  (set-face-attribute 'eat-term-color-9  nil :foreground "#e74c3c")  ; bright red
+  (set-face-attribute 'eat-term-color-10 nil :foreground "#43a047")  ; bright green
+  (set-face-attribute 'eat-term-color-11 nil :foreground "#c79a00")  ; bright yellow
+  (set-face-attribute 'eat-term-color-12 nil :foreground "#1976d2")  ; bright blue
+  (set-face-attribute 'eat-term-color-13 nil :foreground "#ab47bc")  ; bright magenta
+  (set-face-attribute 'eat-term-color-14 nil :foreground "#0097a7")) ; bright cyan
 
 (defun pmd/configure-eshell ()
   (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
@@ -473,6 +493,34 @@
       (pmd/claude-code-redirect-mode 1)))
 
   (add-hook 'eat-mode-hook #'pmd/claude-code-setup-redirect-keys)
+
+  ;; Apply a doom-one (dark) palette buffer-locally in claude-code eat buffers.
+  ;; Global theme stays doom-one-light; only this buffer goes dark, since
+  ;; Claude's TUI is tuned for dark backgrounds. Uses face-remap-add-relative
+  ;; (buffer-local) instead of load-theme (global).
+  (defun pmd/claude-code-apply-dark-theme ()
+    "Apply doom-one (dark) faces in the current claude-code eat buffer."
+    (when (claude-code-ide--session-buffer-p (current-buffer))
+      (face-remap-add-relative 'default
+                               :background "#282c34" :foreground "#bbc2cf")
+      (face-remap-add-relative 'fringe :background "#282c34")
+      (face-remap-add-relative 'cursor :background "#51afef")
+      (face-remap-add-relative 'region :background "#3f444a")
+      ;; ANSI palette tuned for doom-one's dark bg.
+      (face-remap-add-relative 'eat-term-color-1  :foreground "#ff6c6b")
+      (face-remap-add-relative 'eat-term-color-2  :foreground "#98be65")
+      (face-remap-add-relative 'eat-term-color-3  :foreground "#ECBE7B")
+      (face-remap-add-relative 'eat-term-color-4  :foreground "#51afef")
+      (face-remap-add-relative 'eat-term-color-5  :foreground "#c678dd")
+      (face-remap-add-relative 'eat-term-color-6  :foreground "#46D9FF")
+      (face-remap-add-relative 'eat-term-color-9  :foreground "#ff7b72")
+      (face-remap-add-relative 'eat-term-color-10 :foreground "#a3d977")
+      (face-remap-add-relative 'eat-term-color-11 :foreground "#f7d27a")
+      (face-remap-add-relative 'eat-term-color-12 :foreground "#6cc8ff")
+      (face-remap-add-relative 'eat-term-color-13 :foreground "#d885e8")
+      (face-remap-add-relative 'eat-term-color-14 :foreground "#5ee0ff")))
+
+  (add-hook 'eat-mode-hook #'pmd/claude-code-apply-dark-theme)
 
   ;; Toggle redirect off in copy mode (eat-emacs-mode), back on in semi-char
   (advice-add 'eat-emacs-mode :after
@@ -680,16 +728,6 @@
 ;;; ============================================================================
 ;;; Custom keybindings
 ;;; ============================================================================
-
-;; C-y → Maccy clipboard history (replaces yank)
-(defun pmd/maccy-paste ()
-  "Open Maccy clipboard history popup."
-  (interactive)
-  (start-process "maccy" nil "osascript" "-e"
-                 "tell application \"System Events\" to key code 16 using {command down, option down, control down}"))
-
-(global-set-key (kbd "C-y") #'pmd/maccy-paste)
-(global-set-key (kbd "M-y") #'pmd/maccy-paste)
 
 (global-set-key (kbd "C-x C-M-b") 'bookmark-jump)
 (global-set-key (kbd "C-x C-M-r") 'revert-buffer)
