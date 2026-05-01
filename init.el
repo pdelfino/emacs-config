@@ -415,7 +415,18 @@
   (set-face-attribute 'eat-term-color-11 nil :foreground "#f7d27a")  ; bright yellow
   (set-face-attribute 'eat-term-color-12 nil :foreground "#6cc8ff")  ; bright blue
   (set-face-attribute 'eat-term-color-13 nil :foreground "#d885e8")  ; bright magenta
-  (set-face-attribute 'eat-term-color-14 nil :foreground "#5ee0ff")) ; bright cyan
+  (set-face-attribute 'eat-term-color-14 nil :foreground "#5ee0ff")  ; bright cyan
+
+  ;; Force the eat terminal to repaint by toggling a window split.
+  ;; Useful when the Claude Code TUI gets visually corrupted (stale
+  ;; characters, mis-wrapped lines after a resize) without losing the
+  ;; underlying process. Bound to C-c r in eat-semi-char-mode-map.
+  (defun pmd/eat-redraw ()
+    "Force the eat terminal in this buffer to repaint."
+    (interactive)
+    (split-window-below)
+    (delete-other-windows))
+  (define-key eat-semi-char-mode-map (kbd "C-c r") #'pmd/eat-redraw))
 
 (defun pmd/configure-eshell ()
   (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
