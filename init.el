@@ -344,7 +344,6 @@
   :hook (org-mode . (lambda ()
                       (setq visual-fill-column-width 100
                             visual-fill-column-center-text t)
-                      (visual-line-mode 1)
                       (visual-fill-column-mode 1))))
 
 (use-package org-make-toc)
@@ -391,7 +390,11 @@
 (use-package vterm
   :commands vterm
   :config
-  (setq vterm-max-scrollback 10000))
+  (setq vterm-max-scrollback 10000)
+  ;; Force a TERM value Claude Code recognizes as a full TUI terminal
+  ;; (so it engages the alternate screen instead of streaming frames
+  ;; into scrollback, which causes duplicate "Pouncing..." status lines).
+  (setq vterm-term-environment-variable "xterm-256color"))
 
 (use-package eat
   :commands eat
@@ -468,15 +471,20 @@
   :bind (("C-c C-'" . claude-code-ide-menu)
          ("C-c RET" . claude-code-ide-send-prompt))
   :config
-  (setq claude-code-ide-terminal-backend 'eat)
+  (setq claude-code-ide-terminal-backend 'vterm)
   (setq claude-code-ide-diagnostics-backend 'flycheck)
   (setq claude-code-ide-window-side 'bottom)
-  (setq claude-code-ide-window-height 15)
+  (setq claude-code-ide-window-height 28)
   (claude-code-ide-emacs-tools-setup)
 
-  ;; In claude-code eat buffers, redirect printable keystrokes to the
-  ;; send-prompt minibuffer so typing naturally opens the prompt.
-  ;; "/" is excluded so slash commands (/help, /compact, etc.) still work.
+  ;; Optional: redirect printable keystrokes to the send-prompt minibuffer.
+  ;; Disabled by default — auto-enabling it caused point to drift off the
+  ;; vterm process mark on every keystroke (each redirect opens a recursive
+  ;; minibuffer), which made vterm stop auto-scrolling and the buffer appear
+  ;; "stuck" on stale content. Type directly into vterm instead, and use
+  ;; `C-c RET' (claude-code-ide-send-prompt) when you want a structured prompt.
+  ;; The minor mode is left defined so it can still be toggled on manually
+  ;; via `M-x pmd/claude-code-redirect-mode' if you want to experiment.
   (defun pmd/claude-code-redirect-to-prompt ()
     "Open send-prompt with the typed character as initial input."
     (interactive)
@@ -490,41 +498,39 @@
         (unless (= c ?/)
           (define-key map (string c) #'pmd/claude-code-redirect-to-prompt)))
       map)
-    "Keymap active in claude-code eat buffers during normal (semi-char) mode.")
+    "Keymap active when `pmd/claude-code-redirect-mode' is on.")
 
   (define-minor-mode pmd/claude-code-redirect-mode
     "Redirect printable keys to claude-code-ide-send-prompt."
     :lighter nil
-    :keymap pmd/claude-code-redirect-mode-map)
-
-  (defun pmd/claude-code-setup-redirect-keys ()
-    "Enable key redirect in claude-code eat buffers."
-    (when (claude-code-ide--session-buffer-p (current-buffer))
-      (pmd/claude-code-redirect-mode 1)))
-
-  (add-hook 'eat-mode-hook #'pmd/claude-code-setup-redirect-keys)
-
-  ;; Toggle redirect off in copy mode (eat-emacs-mode), back on in semi-char
-  (advice-add 'eat-emacs-mode :after
-              (lambda (&rest _)
-                (when (bound-and-true-p pmd/claude-code-redirect-mode)
-                  (pmd/claude-code-redirect-mode -1))))
-
-  (advice-add 'eat-semi-char-mode :after
-              (lambda (&rest _)
-                (when (claude-code-ide--session-buffer-p (current-buffer))
-                  (pmd/claude-code-redirect-mode 1)))))
+    :keymap pmd/claude-code-redirect-mode-map))
 
 (defun pmd/claude-code-toggle-copy-mode ()
-  "Toggle between eat-emacs-mode (copy) and eat-semi-char-mode (normal)."
+  "Toggle vterm-copy-mode in the current Claude Code buffer."
   (interactive)
-  (if (not (or eat--semi-char-mode eat--char-mode))
-      ;; Currently in emacs mode (copy), switch back
-      (eat-semi-char-mode)
-    ;; Switch to emacs mode for copying
-    (eat-emacs-mode)
-    ;; Force visible cursor (terminal app may have hidden it)
-    (setq-local cursor-type 'box)))
+  (vterm-copy-mode 'toggle))
+
+;; Free mouse scroll in vterm: wheel-up auto-enters copy-mode,
+;; wheel-down auto-exits when back at the bottom of the buffer.
+(with-eval-after-load 'vterm
+  (defun pmd/vterm-mouse-scroll-up (event)
+    "Wheel up: enter `vterm-copy-mode' if needed, then scroll."
+    (interactive "e")
+    (unless vterm-copy-mode (vterm-copy-mode 1))
+    (mwheel-scroll event))
+
+  (defun pmd/vterm-mouse-scroll-down (event)
+    "Wheel down: scroll; if back at bottom, exit `vterm-copy-mode'."
+    (interactive "e")
+    (if vterm-copy-mode
+        (progn (mwheel-scroll event)
+               (when (eobp) (vterm-copy-mode -1)))
+      (mwheel-scroll event)))
+
+  (dolist (ev '([wheel-up] [double-wheel-up] [triple-wheel-up]))
+    (define-key vterm-mode-map ev #'pmd/vterm-mouse-scroll-up))
+  (dolist (ev '([wheel-down] [double-wheel-down] [triple-wheel-down]))
+    (define-key vterm-mode-map ev #'pmd/vterm-mouse-scroll-down)))
 
 (defhydra hydra-claude (:exit t)
   "Claude Code"
@@ -695,6 +701,7 @@
 (defun pmd/line-change ()
   (when (and (eq (get-buffer-window) (selected-window))
              (not (derived-mode-p 'eat-mode))
+             (not (derived-mode-p 'vterm-mode))
              (not (string= (buffer-name) "*claude-config*")))
     (recenter)))
 
