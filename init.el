@@ -101,8 +101,38 @@
                 shell-mode-hook
                 eshell-mode-hook
                 vterm-mode-hook
-                eat-mode-hook))
+                eat-mode-hook
+                pdf-view-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
+
+;; --- Streaming-output redisplay tuning -----------------------------------
+;; Default `read-process-output-max' is 4 KB, which makes Emacs do a full
+;; redisplay cycle ~10-20×/sec on LLM streaming output (gptel, claude-code-ide,
+;; etc.). Bumping to 4 MB collapses each stream into a handful of redraws.
+;; Combined with bidi + jit-lock + scroll tweaks, this is the standard
+;; modern config for streaming-heavy workflows.
+(setq read-process-output-max (* 4 1024 1024))
+
+;; Skip bidirectional-paragraph analysis on long lines (Claude responses can
+;; have 2000-char paragraphs that hit this hard).
+(setq-default bidi-paragraph-direction 'left-to-right)
+(setq bidi-inhibit-bpa t)
+
+;; Don't pause-and-recompute when scrolling fast.
+(setq fast-but-imprecise-scrolling t)
+(setq jit-lock-defer-time 0.05)
+
+;; In chat / streaming buffers, also turn off flycheck (it re-checks on every
+;; change and amplifies the redraw storm) and line numbers (which recompute
+;; per insertion). Mirrors the vterm/eat/pdf-view exemption above.
+(dolist (mode '(gptel-mode-hook
+                ellama-mode-hook
+                comint-mode-hook))
+  (add-hook mode (lambda ()
+                   (display-line-numbers-mode 0)
+                   (when (bound-and-true-p flycheck-mode)
+                     (flycheck-mode 0)))))
+;; -------------------------------------------------------------------------
 
 ;; Show matching parens
 (show-paren-mode t)
