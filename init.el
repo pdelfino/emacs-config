@@ -212,15 +212,23 @@
   :if (memq window-system '(mac ns x))
   :config
   (exec-path-from-shell-initialize)
-  ;; Copy named Anthropic keys from ~/.secure_env_vars so subprocesses
-  ;; (claude --print, gptel, etc.) inherit them.
+  ;; Copy named Anthropic keys from ~/.secure_env_vars so they are available
+  ;; in the Emacs environment for subprocesses that explicitly need API
+  ;; billing (e.g., a future gptel setup, custom API scripts).
+  ;;
+  ;; IMPORTANT: do NOT alias one of these as `ANTHROPIC_API_KEY' by default.
+  ;; The `claude' CLI prefers `ANTHROPIC_API_KEY' over the claude.ai session
+  ;; token, which silently switches `claude-code-ide' from the Max-plan
+  ;; subscription to per-token API billing. Set the alias only inside the
+  ;; specific subprocess that needs it, e.g.:
+  ;;
+  ;;   (let ((process-environment
+  ;;          (cons (concat "ANTHROPIC_API_KEY="
+  ;;                        (getenv "ANTHROPIC_API_KEY_PEDRO"))
+  ;;                process-environment)))
+  ;;     (call-process ...))
   (dolist (var '("ANTHROPIC_API_KEY_PEDRO" "ANTHROPIC_API_KEY_TALLYFOR"))
-    (exec-path-from-shell-copy-env var))
-  ;; Default `ANTHROPIC_API_KEY' to the personal account; override per-session
-  ;; with `(setenv "ANTHROPIC_API_KEY" (getenv "ANTHROPIC_API_KEY_TALLYFOR"))'
-  ;; when working inside the Tallyfor context.
-  (when (getenv "ANTHROPIC_API_KEY_PEDRO")
-    (setenv "ANTHROPIC_API_KEY" (getenv "ANTHROPIC_API_KEY_PEDRO"))))
+    (exec-path-from-shell-copy-env var)))
 
 ;;; ============================================================================
 ;;; UI packages
