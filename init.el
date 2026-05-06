@@ -571,6 +571,59 @@
   (dolist (ev '([wheel-down] [double-wheel-down] [triple-wheel-down]))
     (define-key vterm-mode-map ev #'pmd/vterm-mouse-scroll-down)))
 
+(defun pmd/claude-region (start end)
+  "Send the active region (or whole buffer) to `claude --print'.
+Inserts the response below the region as a fenced block.
+Asynchronous; non-blocking. Uses `ANTHROPIC_API_KEY' from the
+environment (set via init.el to `ANTHROPIC_API_KEY_PEDRO' by default).
+
+Use cases: explain code, translate prose, summarize an org subtree,
+\"what's wrong with this regex,\" etc. — without spinning up a full
+claude-code-ide session."
+  (interactive
+   (if (use-region-p)
+       (list (region-beginning) (region-end))
+     (list (point-min) (point-max))))
+  (unless (executable-find "claude")
+    (user-error "`claude' CLI not on PATH; install Claude Code"))
+  (let* ((prompt (buffer-substring-no-properties start end))
+         (origin-buf (current-buffer))
+         (anchor (with-current-buffer origin-buf
+                   (save-excursion
+                     (goto-char end)
+                     (end-of-line)
+                     (insert "\n\n--- Claude (running...) ---\n")
+                     (point-marker)))))
+    (set-marker-insertion-type anchor t)
+    (make-process
+     :name "pmd-claude-region"
+     :buffer (generate-new-buffer " *pmd-claude-region*")
+     :command (list "claude" "--print" prompt)
+     :sentinel
+     (lambda (proc _event)
+       (when (memq (process-status proc) '(exit signal))
+         (let* ((status (process-exit-status proc))
+                (out (with-current-buffer (process-buffer proc)
+                       (buffer-string)))
+                (origin (marker-buffer anchor)))
+           (when (buffer-live-p origin)
+             (with-current-buffer origin
+               (save-excursion
+                 (goto-char anchor)
+                 (forward-line -1)
+                 (delete-region (line-beginning-position) (line-end-position))
+                 (insert (if (zerop status)
+                             "--- Claude ---"
+                           (format "--- Claude (exit %d) ---" status)))
+                 (goto-char anchor)
+                 (insert (string-trim out) "\n--- end ---\n"))))
+           (kill-buffer (process-buffer proc))
+           (set-marker anchor nil)
+           (message "[pmd/claude-region] %s"
+                    (if (zerop status) "done" "failed"))))))
+    (message "[pmd/claude-region] sent %d chars to claude --print"
+             (- end start))))
+
 (defhydra hydra-claude (:exit t)
   "Claude Code"
   ("o" claude-code-ide "open/start")
@@ -580,6 +633,7 @@
   ("m" claude-code-ide-insert-at-mentioned "send selection")
   ("c" claude-code-ide-continue "continue")
   ("r" claude-code-ide-resume "resume")
+  ("p" pmd/claude-region "ask region (claude --print, inline)")
   ("q" nil "quit"))
 
 (global-set-key (kbd "C-c c") 'hydra-claude/body)
