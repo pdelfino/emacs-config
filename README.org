@@ -1,55 +1,33 @@
-#+TITLE: Pedro's Emacs Config
+#+TITLE: emacs-config
 #+AUTHOR: Pedro Delfino
+#+OPTIONS: toc:nil num:nil
 
-A handcrafted, single-file Emacs configuration. No frameworks, no layers, no
-generated code -- just one person's opinionated =init.el= that has evolved
-through years of daily use across NixOS and macOS.
+[[file:painting.jpg]]
 
-* Philosophy
+/"The Alchymist, in Search of the Philosopher's Stone" (1771) by Joseph Wright of Derby — [[https://en.wikipedia.org/wiki/The_Alchymist][Wikipedia]]/
 
-- One file to rule them all: everything lives in =init.el=
-- Readable over clever: explicit settings over magic
-- Stable over bleeding-edge: if it works, don't touch it
-- Cursor always centered: because the middle of the screen is where the action is
+*A handcrafted, single-file Emacs configuration -- no frameworks, no layers, no generated code.*
 
-* What's Inside
+* About
 
-** Package Management
+This is one person's opinionated =init.el=, evolved through years of daily use across NixOS and macOS. Everything lives in a single file because readability beats cleverness, and stability beats bleeding-edge. The cursor stays centered on screen, because the middle is where the action is.
 
-[[https://github.com/radian-software/straight.el][straight.el]] + =use-package=. No =package.el=, no MELPA refresh dance on
-startup. Packages are pulled from Git and built locally.
+* Highlights
 
-** Look & Feel
-
-- *Theme:* Doom One Light (easy on the eyes)
-- *Modeline:* Doom Modeline with Nerd Icons
-- *Font:* Cantarell for variable pitch, system default for code
-- *Parens:* Rainbow delimiters, because Lispers deserve color
-- *Cursor:* Always centered on screen via a custom =centered-point-mode=
-
-** Navigation & Completion
-
-- *Ivy + Counsel + Swiper* for narrowing, searching, and completing everything
-- *Ivy Prescient* for frecency-based sorting (it learns what you use)
+- *Single-file config* -- one =init.el=, nothing else
+- *straight.el + use-package* -- packages pulled from Git and built locally, no MELPA refresh dance
+- *Doom One Light* theme with Doom Modeline and Nerd Icons
+- *Ivy + Counsel + Swiper* for narrowing, searching, and completing everything, with frecency sorting via Ivy Prescient
+- *Magit* for Git
+- *Paredit* everywhere -- Emacs Lisp, Clojure, ClojureScript, Scheme, CIDER REPL
+- *Claude Code IDE* -- full Claude Code CLI integration with MCP bridge, accessible via a Hydra menu (=C-c c=). Typing in the Claude buffer opens a minibuffer prompt automatically
+- *gptel* for quick LLM chat from any buffer
 - *Projectile* for jumping between projects in =~/projects=
-- *Ace Window* for when you have too many splits
-- *Helpful* for actually useful =describe-*= buffers
+- *LSP via lsp-mode* for Clojure/ClojureScript, with Flycheck globally enabled
+- *Centered point mode* -- a custom minor mode that keeps the cursor vertically centered
+- *WakaTime* for silent coding activity tracking (loads only if =wakatime-cli= is available)
 
-** Git
-
-*Magit*. What else is there to say?
-
-** AI
-
-- *Claude Code IDE* -- full Claude Code CLI integration with MCP bridge
-  (gives Claude access to LSP, flycheck diagnostics, and project context).
-  Opens in a bottom side window. Typing in the Claude buffer automatically
-  opens the minibuffer prompt (=send-prompt=), so you compose prompts from
-  the minibuffer instead of the terminal. Slash commands (=/help=, etc.)
-  still go directly to the terminal. Accessed via a *hydra* menu (=C-c c=).
-- *gptel* -- quick LLM chat from any buffer
-
-** Languages
+** Language Support
 
 | Language   | Packages                                       |
 |------------+------------------------------------------------|
@@ -59,79 +37,45 @@ startup. Packages are pulled from Git and built locally.
 | LaTeX      | AUCTeX + RefTeX                                 |
 | Markdown   | markdown-mode (GFM for READMEs)                |
 | YAML       | yaml-mode                                       |
-| HTTP       | restclient-mode (=.http= files)                |
+| HTTP       | restclient-mode                                 |
 
-LSP via =lsp-mode= for Clojure/ClojureScript. Flycheck globally enabled with a
-custom EDN syntax checker.
+** Terminal Options
 
-** Lisp Editing
-
-*Paredit* everywhere: Emacs Lisp, Clojure, ClojureScript, Scheme, CIDER REPL.
-Slurp, barf, wrap -- the whole gang.
-
-** Terminal
-
-Three options, depending on the mood:
 - *vterm* -- full terminal emulation (also powers Claude Code IDE)
+- *eat* -- fast terminal emulator
 - *eshell* -- Emacs-native shell with Git-aware powerline prompt
 - *term* -- the classic
 
-** Org-mode
-
-Org is configured for writing, time tracking, and LaTeX export:
-- Pretty bullets (=org-bullets=)
-- Centered text with =visual-fill-column= at 100 columns
-- Spaced repetition flashcards via =org-drill=
-- GitHub-flavored Markdown export via =ox-gfm=
-- Table of contents generation via =org-make-toc=
-
 ** macOS Integration
 
-This config is tuned for macOS with [[https://pqrs.org/osx/karabiner/][Karabiner-Elements]]:
-- Caps Lock remapped to Control
-- Cmd and Option swapped (physical Cmd becomes Meta)
-- Pixel-smooth scrolling, native fullscreen
-- =exec-path-from-shell= so Emacs inherits your =$PATH=
+Tuned for macOS with [[https://pqrs.org/osx/karabiner/][Karabiner-Elements]]: Caps Lock remapped to Control, Cmd and Option swapped so physical Cmd becomes Meta, pixel-smooth scrolling, and =exec-path-from-shell= so Emacs inherits your =$PATH=.
 
-** Custom Goodies
+** Custom Utilities
 
-A few hand-rolled utilities:
-
-- =pmd/clipboard-copy-full-path= / =pmd/clipboard-copy-file-name= -- copy the
-  current file's path or name to the clipboard
-- =pmd/org-clock-sum-current-region= -- sum up clocked time in a selected region
+- =pmd/clipboard-copy-full-path= / =pmd/clipboard-copy-file-name= -- copy file path or name to clipboard
+- =pmd/org-clock-sum-current-region= -- sum clocked time in a selected region
 - =pmd/markdown-convert-buffer-to-org= -- convert Markdown to Org via pandoc
-- =pmd/align-repeat= -- align text by a regexp (great for tables and maps)
-- =pmd/remove-dos-eol= -- kill those pesky =\r= line endings
+- =pmd/align-repeat= -- align text by a regexp
+- =pmd/remove-dos-eol= -- remove =\r= line endings
 
-** Tracking
+* Key Bindings
 
-*WakaTime* runs globally, silently logging coding activity. Only loads if
-=wakatime-cli= is found on the system, so the config works cleanly on
-machines without it.
+| Binding         | Action                              |
+|-----------------+-------------------------------------|
+| =C-c c=         | Claude hydra menu                   |
+| =C-c c o=       | Open/start Claude Code              |
+| =C-c c s=       | Send prompt to Claude               |
+| =C-c c t=       | Toggle Claude window                |
+| =C-c p=         | Projectile command map              |
+| =C-s=           | Swiper (search in buffer)           |
+| =M-x=           | Counsel M-x (fuzzy command search)  |
+| =M-y=           | Counsel yank-pop (clipboard ring)   |
+| =C->= / =C-<=   | Paredit slurp / barf forward        |
 
-* Key Bindings Worth Remembering
+* Requirements
 
-| Binding       | Action                              |
-|---------------+-------------------------------------|
-| =C-c c=       | Claude hydra menu                   |
-| =C-c c o=     | Open/start Claude Code              |
-| =C-c c s=     | Send prompt to Claude               |
-| =C-c c t=     | Toggle Claude window                |
-| =C-c c y=     | Toggle vterm copy mode              |
-| =C-c c m=     | Send selection to Claude            |
-| =C-c c c=     | Continue conversation               |
-| =C-c c r=     | Resume previous session             |
-| =C-c C-'=     | Claude Code IDE transient menu      |
-| =C-c RET=     | Send prompt (direct binding)        |
-| =C-c p=       | Projectile command map              |
-| =C-s=         | Swiper (search in buffer)           |
-| =M-x=         | Counsel M-x (fuzzy command search)  |
-| =M-y=         | Counsel yank-pop (clipboard ring)   |
-| =C-x C-M-b=  | Jump to bookmark                    |
-| =C-x C-M-r=  | Revert buffer                       |
-| =M-]=         | Dabbrev expand (hippie completion)  |
-| =C->=  / =C-<= | Paredit slurp / barf forward      |
+- Emacs 29+
+- =cmake= (for vterm's native module)
 
 * Installation
 
@@ -146,20 +90,11 @@ ln -sf ~/projects/emacs-config/init.el ~/.emacs.d/init.el
 emacs
 #+end_src
 
-Requires Emacs 29+ and =cmake= (for vterm's native module).
+* Related Configs
 
-* Related
-
-- [[https://github.com/pdelfino/karabiner-config][karabiner-config]] - Emacs keybindings system-wide on macOS (Caps Lock → Control, etc.)
-- [[https://github.com/pdelfino/claude-config][claude-config]] - Claude Code configuration (the AI leash)
-- [[https://github.com/pdelfino/homerow-config][homerow-config]] - Click things without a mouse
-- [[https://github.com/pdelfino/iterm2-config][iterm2-config]] - iTerm2 terminal profile
-- [[https://github.com/pdelfino/zshrc][zshrc]] - Shell configuration with Emacs keybindings
-- [[https://github.com/pdelfino/macos-setup][macos-setup]] - The bootstrap that ties it all together
-
-* History
-
-This config started on NixOS circa 2021, originally using =package.el= and MELPA.
-It has since been rewritten for macOS with =straight.el=. The old config (with
-SLIME, Nyxt helpers, and the entire =elpa/= directory accidentally committed) is
-preserved in git history for the archaeologically curious.
+- [[https://github.com/pdelfino/karabiner-config][karabiner-config]] -- Emacs keybindings system-wide on macOS
+- [[https://github.com/pdelfino/claude-config][claude-config]] -- Claude Code configuration
+- [[https://github.com/pdelfino/homerow-config][homerow-config]] -- Click things without a mouse
+- [[https://github.com/pdelfino/iterm2-config][iterm2-config]] -- iTerm2 terminal profile
+- [[https://github.com/pdelfino/zshrc][zshrc]] -- Shell configuration with Emacs keybindings
+- [[https://github.com/pdelfino/macos-setup][macos-setup]] -- The bootstrap that ties it all together
