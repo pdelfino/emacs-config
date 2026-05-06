@@ -211,7 +211,16 @@
 (use-package exec-path-from-shell
   :if (memq window-system '(mac ns x))
   :config
-  (exec-path-from-shell-initialize))
+  (exec-path-from-shell-initialize)
+  ;; Copy named Anthropic keys from ~/.secure_env_vars so subprocesses
+  ;; (claude --print, gptel, etc.) inherit them.
+  (dolist (var '("ANTHROPIC_API_KEY_PEDRO" "ANTHROPIC_API_KEY_TALLYFOR"))
+    (exec-path-from-shell-copy-env var))
+  ;; Default `ANTHROPIC_API_KEY' to the personal account; override per-session
+  ;; with `(setenv "ANTHROPIC_API_KEY" (getenv "ANTHROPIC_API_KEY_TALLYFOR"))'
+  ;; when working inside the Tallyfor context.
+  (when (getenv "ANTHROPIC_API_KEY_PEDRO")
+    (setenv "ANTHROPIC_API_KEY" (getenv "ANTHROPIC_API_KEY_PEDRO"))))
 
 ;;; ============================================================================
 ;;; UI packages
