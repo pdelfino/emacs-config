@@ -425,6 +425,11 @@
   :config
   (pdf-tools-install :no-query))
 
+(use-package image-roll
+  :straight (:host github :repo "dalanicolai/image-roll.el")
+  :after pdf-tools
+  :hook (pdf-view-mode . pdf-view-roll-minor-mode))
+
 ;;; ============================================================================
 ;;; Terminal emulators
 ;;; ============================================================================
