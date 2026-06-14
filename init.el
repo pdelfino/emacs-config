@@ -68,8 +68,12 @@
 ;; Launch maximized
 (add-to-list 'default-frame-alist '(fullscreen . maximized))
 
-;; Font size
-(set-face-attribute 'default nil :height 160)
+;; Font size + family. Family is explicit (was falling back to Monaco,
+;; which lacks box-drawing/arrow glyphs the claude-code TUI uses; Emacs
+;; rendered those from a different-width fallback font, drifting vterm's
+;; cell math and garbling earlier lines). Menlo has full coverage, so
+;; every cell renders from one font and vterm stays aligned.
+(set-face-attribute 'default nil :family "Menlo" :height 160)
 (set-face-attribute 'variable-pitch nil :font "Cantarell" :weight 'regular)
 
 ;;; ============================================================================
@@ -582,7 +586,22 @@
   (dolist (ev '([wheel-up] [double-wheel-up] [triple-wheel-up]))
     (define-key vterm-mode-map ev #'pmd/vterm-mouse-scroll-up))
   (dolist (ev '([wheel-down] [double-wheel-down] [triple-wheel-down]))
-    (define-key vterm-mode-map ev #'pmd/vterm-mouse-scroll-down)))
+    (define-key vterm-mode-map ev #'pmd/vterm-mouse-scroll-down))
+
+  ;; Redraw a garbled vterm/Claude buffer. Two layers: `redraw-display'
+  ;; repaints Emacs's frame, then C-l is sent into the child process so a
+  ;; full-screen TUI (claude-code) repaints itself from scratch. Bound to
+  ;; C-c r to match the old eat-backend muscle memory (pmd/eat-redraw).
+  ;; Note: if garble persists, the buffer predates a font change and its
+  ;; vterm cell geometry is stale, kill it and reopen claude-code (or
+  ;; restart Emacs) so the new buffer sizes itself to the current font.
+  (defun pmd/vterm-redraw ()
+    "Repaint this vterm buffer and tell the TUI inside it to redraw."
+    (interactive)
+    (redraw-display)
+    (when (derived-mode-p 'vterm-mode)
+      (vterm-send-key "l" nil nil t)))
+  (define-key vterm-mode-map (kbd "C-c r") #'pmd/vterm-redraw))
 
 (defun pmd/claude-region (start end)
   "Send the active region (or whole buffer) to `claude --print'.
