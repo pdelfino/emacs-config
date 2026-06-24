@@ -191,6 +191,15 @@
 (straight-use-package 'use-package)
 (setq straight-use-package-by-default t)
 
+;; Load straight.el's transient (0.13+) BEFORE anything else can pull in the
+;; stale built-in transient that ships with Emacs 29.4. Magit's autoloads (and
+;; claude-code-ide's menu) trigger `require'd transient early; if the built-in
+;; loads first it wins, and `transient--set-layout' (only in 0.7+) is void —
+;; which is exactly the error claude-code-ide's [o] open/start menu throws.
+;; Installing + `demand'ing it here makes straight's copy the one in memory.
+(use-package transient :straight t :demand t)
+(require 'transient)
+
 ;; Weekly auto-update: pull all packages if 7+ days since last update
 (defun pmd/straight-weekly-update ()
   "Pull all straight.el packages if a week has passed since last update."
