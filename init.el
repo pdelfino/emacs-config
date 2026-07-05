@@ -109,6 +109,22 @@
                 pdf-view-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
+;; --- Org readability: soft-wrap long lines -------------------------------
+;; Claude Code transcripts (render-transcript.py) put each turn's prose in a
+;; #+begin_example block as one very long logical line. With the global
+;; `truncate-lines' default (t, set above for code), everything past the
+;; window edge is clipped off the right and unreadable. Make Org buffers wrap
+;; instead. `org-startup-truncated nil' is Org's own knob for this; `word-wrap'
+;; breaks at whitespace rather than mid-word. No visual-line motion remap, so
+;; C-a / C-e / C-k keep their logical-line meaning.
+(setq org-startup-truncated nil)
+(add-hook 'org-mode-hook (lambda () (setq-local word-wrap t)))
+;; Transcripts now render Claude's prose as native Org (tables become real,
+;; TAB-alignable Org tables). Side effect: bare `snake_case` could display as a
+;; subscript. Require braces (`x_{i}`) for sub/superscripts so identifiers and
+;; file_names in prose render literally.
+(setq org-use-sub-superscripts '{})
+
 ;; --- Streaming-output redisplay tuning -----------------------------------
 ;; Default `read-process-output-max' is 4 KB, which makes Emacs do a full
 ;; redisplay cycle ~10-20×/sec on LLM streaming output (gptel, claude-code-ide,
@@ -452,6 +468,10 @@
   (setq explicit-shell-file-name "bash")
   (setq term-prompt-regexp "^[^#$%>\n]*[#$%>] *"))
 
+;; vterm is the "real terminal" for TUIs (libvterm, same engine as NeoVim's
+;; terminal). Box-drawing/arrow glyphs render correctly because the default
+;; font is Menlo (see top of file): with the old Monaco fallback those glyphs
+;; came from a different-width font and broke vterm's cell math.
 (use-package vterm
   :commands vterm
   :config
@@ -528,7 +548,7 @@
             (define-key term-mode-map (kbd "TAB") #'term-send-tab)))
 
 ;;; ============================================================================
-;;; Claude Code IDE
+;;; Claude Code IDE (run Claude inside Emacs, vterm backend)
 ;;; ============================================================================
 
 (use-package claude-code-ide
@@ -612,6 +632,80 @@
       (vterm-send-key "l" nil nil t)))
   (define-key vterm-mode-map (kbd "C-c r") #'pmd/vterm-redraw))
 
+;;; ============================================================================
+;;; Claude transcript viewer (read-only)
+;;; ============================================================================
+;; Complement to claude-code-ide: `pmd/tail-transcript' renders the current
+;; project's newest session JSONL to one readable Org file and auto-reverts it
+;; as the chat grows — works whether the session runs in Emacs (vterm) or
+;; iTerm2. One command, one file, one timer. Nothing auto-starts.
+
+(defvar pmd/transcript-script
+  (expand-file-name "~/.claude/bin/render-transcript.py")
+  "Python renderer: a session's JSONL -> readable Org.")
+
+(defvar pmd/transcript-timer nil
+  "Active re-render timer for `pmd/tail-transcript' (only one at a time).")
+
+(defun pmd/claude-project-dir (&optional dir)
+  "Return the ~/.claude/projects/ dir for DIR (default `default-directory')."
+  (let ((slug (replace-regexp-in-string
+               "/" "-" (directory-file-name
+                        (expand-file-name (or dir default-directory))))))
+    (expand-file-name slug "~/.claude/projects/")))
+
+(defun pmd/newest-session-jsonl (&optional dir)
+  "Return the most recently modified session .jsonl for DIR's project."
+  (let* ((pdir (pmd/claude-project-dir dir))
+         (files (and (file-directory-p pdir)
+                     (directory-files pdir t "\\.jsonl\\'"))))
+    (car (sort files (lambda (a b)
+                       (time-less-p (nth 5 (file-attributes b))
+                                    (nth 5 (file-attributes a))))))))
+
+(defun pmd/tail-transcript ()
+  "Render this project's newest Claude session to ~/<project>-claude.org and tail it.
+Run Claude in iTerm2; this only reads its on-disk JSONL. Re-renders every 3s
+so the file grows as you chat; `pmd/tail-transcript-stop' stops it. Stays on
+whichever session was newest when you ran it, so re-run it to pick up a fresh
+session. Bodies render as native Org (Markdown tables become real, TAB-
+alignable Org tables)."
+  (interactive)
+  (let* ((proj-dir default-directory)
+         (jsonl (pmd/newest-session-jsonl proj-dir)))
+    (unless jsonl
+      (user-error "No Claude session .jsonl found for this project"))
+    (let ((txt (expand-file-name
+                (format "~/%s-claude.org"
+                        (file-name-nondirectory
+                         (directory-file-name proj-dir))))))
+      (call-process "python3" nil nil nil pmd/transcript-script jsonl txt)
+      (find-file txt)
+      (auto-revert-mode 1)
+      (add-hook 'after-revert-hook #'org-set-startup-visibility nil t)
+      (pmd/transcript-goto-last)
+      (when (timerp pmd/transcript-timer) (cancel-timer pmd/transcript-timer))
+      (setq pmd/transcript-timer
+            (run-at-time 3 3 (lambda ()
+                               (call-process "python3" nil nil nil
+                                             pmd/transcript-script jsonl txt))))
+      (message "Tailing -> %s  (M-x pmd/tail-transcript-stop to stop)" txt))))
+
+(defun pmd/transcript-goto-last ()
+  "Put point on the newest conversation (last top-level heading)."
+  (goto-char (point-max))
+  (when (re-search-backward "^\\* " nil t)
+    (recenter 0)))
+
+(defun pmd/tail-transcript-stop ()
+  "Stop the `pmd/tail-transcript' re-render timer."
+  (interactive)
+  (when (timerp pmd/transcript-timer)
+    (cancel-timer pmd/transcript-timer)
+    (setq pmd/transcript-timer nil))
+  (message "Transcript tailing stopped"))
+
+
 (defun pmd/claude-region (start end)
   "Send the active region (or whole buffer) to `claude --print'.
 Inserts the response below the region as a fenced block.
@@ -675,6 +769,8 @@ claude-code-ide session."
   ("c" claude-code-ide-continue "continue")
   ("r" claude-code-ide-resume "resume")
   ("p" pmd/claude-region "ask region (claude --print, inline)")
+  ("T" pmd/tail-transcript "tail transcript (org)")
+  ("S" pmd/tail-transcript-stop "stop tailing")
   ("q" nil "quit"))
 
 (global-set-key (kbd "C-c c") 'hydra-claude/body)
@@ -973,3 +1069,4 @@ claude-code-ide session."
 (put 'downcase-region 'disabled nil)
 
 ;;; init.el ends here
+(put 'dired-find-alternate-file 'disabled nil)
