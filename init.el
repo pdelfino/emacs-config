@@ -216,32 +216,78 @@
 (use-package transient :straight t :demand t)
 (require 'transient)
 
-;; Weekly auto-update: snapshot the current (known-good) versions, THEN
-;; pull all packages, if 7+ days since last update. Freezing first is the
-;; safety net for riding bleeding-edge git with no committed lockfile: if
-;; a weekly pull ships a broken package, `M-x straight-thaw-versions'
-;; rolls every package back to the commits that were running fine right
-;; before this pull.
+;;; Weekly auto-update WITH a version-controlled lockfile ("best of both").
+;; Riding bleeding-edge git (straight-pull-all weekly) stays hands-off, but
+;; every update first freezes the CURRENT (known-good, already-booted)
+;; package commits into a lockfile kept IN this repo and commits it. That
+;; buys reproducibility (a fresh clone can `pmd/straight-rollback' to a
+;; known-good set), a dated git history of package versions, and per-week
+;; revertability, without giving up the automatic refresh. Commits are
+;; LOCAL (no auto-push); push emacs-config when you next work in it.
+(defvar pmd/emacs-config-dir
+  (file-name-directory (file-truename user-init-file))
+  "The emacs-config git repo (init.el is symlinked into ~/.emacs.d/).")
+
+(defvar pmd/straight-lockfile
+  (expand-file-name "straight-lockfile.el" pmd/emacs-config-dir)
+  "Version-controlled copy of straight's version lockfile.")
+
+(defun pmd/straight-snapshot (&optional label)
+  "Freeze straight package versions, mirror the lockfile into emacs-config,
+and commit it locally if it changed. LABEL tags the commit message. Run
+interactively anytime to capture the current versions (e.g. to seed it)."
+  (interactive)
+  (straight-freeze-versions t)
+  (let ((generated (expand-file-name "straight/versions/default.el"
+                                     user-emacs-directory))
+        (default-directory pmd/emacs-config-dir))
+    (when (file-exists-p generated)
+      (copy-file generated pmd/straight-lockfile t)
+      (call-process "git" nil nil nil "add" "straight-lockfile.el")
+      ;; Commit only when the lockfile actually changed, and only that
+      ;; path, so a background snapshot never sweeps up unrelated edits.
+      (when (/= 0 (call-process "git" nil nil nil
+                                "diff" "--cached" "--quiet"
+                                "--" "straight-lockfile.el"))
+        (call-process "git" nil nil nil "commit" "-m"
+                      (format "straight: package lockfile %s%s"
+                              (format-time-string "%Y-%m-%d")
+                              (if label (concat " (" label ")") ""))
+                      "--" "straight-lockfile.el")
+        (message "straight.el: lockfile committed to emacs-config.")))))
+
+(defun pmd/straight-rollback ()
+  "Restore packages to the committed lockfile, then thaw. Run after a bad
+update and restart Emacs. To go further back, first
+`git checkout <older-commit> -- straight-lockfile.el' in emacs-config."
+  (interactive)
+  (copy-file pmd/straight-lockfile
+             (expand-file-name "straight/versions/default.el"
+                               user-emacs-directory)
+             t)
+  (straight-thaw-versions)
+  (message "Rolled back to lockfile. Restart Emacs to load the pinned versions."))
+
 (defun pmd/straight-weekly-update ()
-  "Pull all straight.el packages if a week has passed since last update.
-Freeze the currently-checked-out versions to a lockfile first, so a bad
-pull can be undone with `straight-thaw-versions'."
-  (let ((timestamp-file (expand-file-name "straight-last-update" user-emacs-directory)))
+  "If 7+ days since the last run: commit the current known-good versions,
+then pull all packages to latest. The pre-pull snapshot is a
+guaranteed-startable rollback point (see `pmd/straight-rollback')."
+  (let ((timestamp-file (expand-file-name "straight-last-update"
+                                          user-emacs-directory)))
     (when (or (not (file-exists-p timestamp-file))
               (> (float-time (time-subtract (current-time)
                                             (nth 5 (file-attributes timestamp-file))))
                  (* 7 24 60 60)))
       (message "straight.el: weekly update started...")
-      ;; Rollback point: snapshot the working commits before touching
-      ;; anything. Writes ~/.emacs.d/straight/versions/default.el. FORCE
-      ;; (t) skips the prompt about locally-modified repos so the idle
-      ;; timer never blocks.
-      (straight-freeze-versions t)
+      ;; Snapshot + commit the versions Emacs booted with this session
+      ;; (known-good), THEN move to latest. If the pull breaks things, the
+      ;; committed lockfile is a state that definitely worked.
+      (pmd/straight-snapshot "pre-update known-good")
       (straight-pull-all)
       (straight-rebuild-all)
       (with-temp-file timestamp-file
         (insert (format-time-string "%Y-%m-%d %H:%M:%S")))
-      (message "straight.el: weekly update complete. Rollback: M-x straight-thaw-versions"))))
+      (message "straight.el: weekly update complete."))))
 
 (run-with-idle-timer 30 nil #'pmd/straight-weekly-update)
 
@@ -675,39 +721,54 @@ pull can be undone with `straight-thaw-versions'."
                        (time-less-p (nth 5 (file-attributes b))
                                     (nth 5 (file-attributes a))))))))
 
-(defun pmd/tail-transcript ()
+(defun pmd/transcript-show-all ()
+  "Expand the whole transcript buffer (Org-version agnostic)."
+  (if (fboundp 'org-fold-show-all) (org-fold-show-all) (org-show-all)))
+
+(defun pmd/tail-transcript (&optional no-select)
   "Render this project's newest Claude session to ~/<project>-claude.org and tail it.
-Run Claude in iTerm2; this only reads its on-disk JSONL. Re-renders every 3s
-so the file grows as you chat; `pmd/tail-transcript-stop' stops it. Stays on
-whichever session was newest when you ran it, so re-run it to pick up a fresh
-session. Bodies render as native Org (Markdown tables become real, TAB-
-alignable Org tables)."
+Reads the session's on-disk JSONL (works whether Claude runs in an Emacs vterm
+or in iTerm2), re-renders every 3s so the file grows as you chat, and keeps the
+Org fully expanded so it reads top-to-bottom. `pmd/tail-transcript-stop' (C-c c k)
+stops it. With NO-SELECT (used by the auto-start hook) the buffer is shown
+without stealing focus from the Claude window."
   (interactive)
   (let* ((proj-dir default-directory)
          (jsonl (pmd/newest-session-jsonl proj-dir)))
     (unless jsonl
       (user-error "No Claude session .jsonl found for this project"))
-    (let ((txt (expand-file-name
-                (format "~/%s-claude.org"
-                        (file-name-nondirectory
-                         (directory-file-name proj-dir))))))
-      (call-process "python3" nil nil nil pmd/transcript-script jsonl txt)
-      (find-file txt)
-      (auto-revert-mode 1)
-      (add-hook 'after-revert-hook #'org-set-startup-visibility nil t)
-      (pmd/transcript-goto-last)
+    (let* ((txt (expand-file-name
+                 (format "~/%s-claude.org"
+                         (file-name-nondirectory
+                          (directory-file-name proj-dir)))))
+           (_ (call-process "python3" nil nil nil pmd/transcript-script jsonl txt))
+           (buf (find-file-noselect txt)))
+      (with-current-buffer buf
+        (auto-revert-mode 1)
+        ;; Keep the transcript fully expanded across every 3s refresh so it
+        ;; reads top-to-bottom (the old startup-visibility hook re-folded it
+        ;; on every revert, which fought the reader).
+        (remove-hook 'after-revert-hook #'org-set-startup-visibility t)
+        (add-hook 'after-revert-hook #'pmd/transcript-show-all nil t)
+        (pmd/transcript-show-all)
+        (pmd/transcript-goto-last))
+      (if no-select
+          (display-buffer buf)
+        (pop-to-buffer-same-window buf))
       (when (timerp pmd/transcript-timer) (cancel-timer pmd/transcript-timer))
       (setq pmd/transcript-timer
             (run-at-time 3 3 (lambda ()
                                (call-process "python3" nil nil nil
                                              pmd/transcript-script jsonl txt))))
-      (message "Tailing -> %s  (M-x pmd/tail-transcript-stop to stop)" txt))))
+      (message "Tailing -> %s  (C-c c k to stop)" txt))))
 
 (defun pmd/transcript-goto-last ()
   "Put point on the newest conversation (last top-level heading)."
   (goto-char (point-max))
   (when (re-search-backward "^\\* " nil t)
-    (recenter 0)))
+    ;; `recenter' errors if this buffer is not in the selected window
+    ;; (the no-select / auto-start path), so make it best-effort.
+    (ignore-errors (recenter 0))))
 
 (defun pmd/tail-transcript-stop ()
   "Stop the `pmd/tail-transcript' re-render timer."
@@ -716,6 +777,30 @@ alignable Org tables)."
     (cancel-timer pmd/transcript-timer)
     (setq pmd/transcript-timer nil))
   (message "Transcript tailing stopped"))
+
+;; --- Auto-start the transcript tail when a Claude session opens in Emacs ---
+(defvar pmd/claude-auto-tail t
+  "When non-nil, auto-start the Org transcript tail whenever a Claude Code
+session opens in Emacs (see `pmd/tail-transcript'). Set to nil to disable.")
+
+(defun pmd/claude-auto-tail-maybe (&rest _)
+  "Auto-start `pmd/tail-transcript' after a Claude Code session opens.
+Captures the project dir now, waits for the new session's JSONL to hit disk,
+then tails it without stealing focus from the Claude window."
+  (when pmd/claude-auto-tail
+    (let ((proj default-directory))
+      (run-at-time
+       2.5 nil
+       (lambda ()
+         (let ((default-directory proj))
+           (when (ignore-errors (pmd/newest-session-jsonl proj))
+             (save-selected-window
+               (ignore-errors (pmd/tail-transcript 'no-select))))))))))
+
+;; claude-code-ide's `claude-code-ide' / -continue / -resume all funnel through
+;; this internal starter, so advising it covers every entry point.
+(with-eval-after-load 'claude-code-ide
+  (advice-add 'claude-code-ide--start-session :after #'pmd/claude-auto-tail-maybe))
 
 
 (defun pmd/claude-region (start end)
@@ -781,11 +866,13 @@ claude-code-ide session."
   ("c" claude-code-ide-continue "continue")
   ("r" claude-code-ide-resume "resume")
   ("p" pmd/claude-region "ask region (claude --print, inline)")
-  ("T" pmd/tail-transcript "tail transcript (org)")
-  ("S" pmd/tail-transcript-stop "stop tailing")
+  ("l" pmd/tail-transcript "tail transcript (org)")
+  ("k" pmd/tail-transcript-stop "stop tailing")
   ("q" nil "quit"))
 
 (global-set-key (kbd "C-c c") 'hydra-claude/body)
+;; Direct one-key shortcut for the transcript viewer (no hydra hop needed).
+(global-set-key (kbd "C-c t") #'pmd/tail-transcript)
 
 ;;; ============================================================================
 ;;; Paredit
