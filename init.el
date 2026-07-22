@@ -216,20 +216,32 @@
 (use-package transient :straight t :demand t)
 (require 'transient)
 
-;; Weekly auto-update: pull all packages if 7+ days since last update
+;; Weekly auto-update: snapshot the current (known-good) versions, THEN
+;; pull all packages, if 7+ days since last update. Freezing first is the
+;; safety net for riding bleeding-edge git with no committed lockfile: if
+;; a weekly pull ships a broken package, `M-x straight-thaw-versions'
+;; rolls every package back to the commits that were running fine right
+;; before this pull.
 (defun pmd/straight-weekly-update ()
-  "Pull all straight.el packages if a week has passed since last update."
+  "Pull all straight.el packages if a week has passed since last update.
+Freeze the currently-checked-out versions to a lockfile first, so a bad
+pull can be undone with `straight-thaw-versions'."
   (let ((timestamp-file (expand-file-name "straight-last-update" user-emacs-directory)))
     (when (or (not (file-exists-p timestamp-file))
               (> (float-time (time-subtract (current-time)
                                             (nth 5 (file-attributes timestamp-file))))
                  (* 7 24 60 60)))
       (message "straight.el: weekly update started...")
+      ;; Rollback point: snapshot the working commits before touching
+      ;; anything. Writes ~/.emacs.d/straight/versions/default.el. FORCE
+      ;; (t) skips the prompt about locally-modified repos so the idle
+      ;; timer never blocks.
+      (straight-freeze-versions t)
       (straight-pull-all)
       (straight-rebuild-all)
       (with-temp-file timestamp-file
         (insert (format-time-string "%Y-%m-%d %H:%M:%S")))
-      (message "straight.el: weekly update complete."))))
+      (message "straight.el: weekly update complete. Rollback: M-x straight-thaw-versions"))))
 
 (run-with-idle-timer 30 nil #'pmd/straight-weekly-update)
 
