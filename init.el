@@ -332,7 +332,10 @@ guaranteed-startable rollback point (see `pmd/straight-rollback')."
 
 (use-package doom-themes
   :config
-  (load-theme 'doom-one t)
+  ;; doom-flatwhite: warm paper-white, low-contrast light theme. Whitey
+  ;; and easy on the eyes, and it echoes the Le Day Club off-white brand
+  ;; (#fbfaf6) rather than a stark clinical pure-white.
+  (load-theme 'doom-flatwhite t)
   (doom-themes-org-config))
 
 (use-package rainbow-delimiters
