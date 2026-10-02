@@ -65,8 +65,14 @@
 ;; Prevent font cache compaction during GC (reduces micro-stutters)
 (setq inhibit-compacting-font-caches t)
 
-;; Launch maximized
-(add-to-list 'default-frame-alist '(fullscreen . maximized))
+;; Frames resize to any pixel size, not only whole character cells. Required
+;; for macOS tiling (fn+ctrl+arrows), Rectangle or AeroSpace to place Emacs
+;; exactly, and for dragging the window edge to behave with a large font.
+(setq frame-resize-pixelwise t)
+
+;; Do NOT launch maximized: a frame created with (fullscreen . maximized)
+;; stays pinned to that state and ignores drag-resizing and tiling. Maximize
+;; on demand with M-x toggle-frame-maximized (or fn+ctrl+F on macOS).
 
 ;; Font size + family. Family is explicit (was falling back to Monaco,
 ;; which lacks box-drawing/arrow glyphs the claude-code TUI uses; Emacs
