@@ -657,6 +657,24 @@ guaranteed-startable rollback point (see `pmd/straight-rollback')."
     :lighter nil
     :keymap pmd/claude-code-redirect-mode-map))
 
+;; agent-shell: Claude (and any other ACP agent) in a comint buffer, no terminal
+;; emulation. Installed 2026-10-17 for the nemesis M0 week (nemesis#44).
+;; The Claude ACP adapter is a global npm binary under nvm (node 20 default):
+;;   npm install -g @agentclientprotocol/claude-agent-acp
+;; exec-path-from-shell makes it and `claude' visible to Emacs.app, so the
+;; default command '("claude-agent-acp") works; `:login t' reuses the Claude
+;; CLI login (the subscription), no API key in this file.
+(use-package agent-shell
+  :straight (:host github :repo "xenodium/agent-shell")
+  :bind (("C-c a" . agent-shell))
+  :config
+  (setq agent-shell-anthropic-authentication
+        (agent-shell-anthropic-make-authentication :login t))
+  ;; Claude Code is the only agent in use (2026-10-17): skip the agent menu,
+  ;; `C-c a' opens Claude directly. Remove this line to get the menu back.
+  (setq agent-shell-preferred-agent-config
+        (agent-shell-anthropic-make-claude-code-config)))
+
 (defun pmd/claude-code-toggle-copy-mode ()
   "Toggle vterm-copy-mode in the current Claude Code buffer."
   (interactive)
