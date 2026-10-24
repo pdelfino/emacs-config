@@ -74,6 +74,19 @@
 ;; stays pinned to that state and ignores drag-resizing and tiling. Maximize
 ;; on demand with M-x toggle-frame-maximized (or fn+ctrl+F on macOS).
 
+;; Start filling the screen's work area, as a plain size rather than the
+;; maximized state, so it stays resizable. Needed because this emacs-mac
+;; build ignores edge drags on macOS 27 and otherwise opens small.
+(defun pedro/frame-fill-workarea (&optional frame)
+  (let* ((frame (or frame (selected-frame)))
+         (wa (frame-monitor-workarea frame))
+         (dw (- (frame-outer-width frame) (frame-text-width frame)))
+         (dh (- (frame-outer-height frame) (frame-text-height frame))))
+    (set-frame-position frame (nth 0 wa) (nth 1 wa))
+    (set-frame-size frame (- (nth 2 wa) dw) (- (nth 3 wa) dh) t)))
+(add-hook 'window-setup-hook
+          (lambda () (when (display-graphic-p) (pedro/frame-fill-workarea))))
+
 ;; Font size + family. Family is explicit (was falling back to Monaco,
 ;; which lacks box-drawing/arrow glyphs the claude-code TUI uses; Emacs
 ;; rendered those from a different-width fallback font, drifting vterm's
